@@ -11,4 +11,3 @@ serde_json = "1.0"          # JSON parsing
 tokio = { version = "1.0", features = ["full"] }   # Async runtime
 reqwest = { version = "0.11", features = ["json"] } # HTTP client with JSON support
 signalr-client = { path = "src/signalr_client" }
-openssl = { version = "0.10.72", features = ["vendored"] }
