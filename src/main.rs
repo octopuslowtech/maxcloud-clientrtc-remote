@@ -1,3 +1,4 @@
+
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -6,7 +7,8 @@ use signalr_client::SignalRClient;
 use signalr_client::InvocationContext;
 
 // URL backend
-const BACKEND_URL: &str = "http://localhost:7051";
+// const BACKEND_URL: &str = "http://localhost:7051";
+const BACKEND_URL: &str = "https://api.maxcloudphone.com";
 
 // Trạng thái WebRTC (sẽ dùng sau khi mở rộng)
 // Định nghĩa kiểu tạm thời cho PeerConnection (sẽ thay thế sau)
@@ -135,14 +137,8 @@ struct LoginQuery {
 }
 
 async fn connect_to_signalr(token: &str) -> Result<SignalRClient, Box<dyn std::error::Error>> {
-    let url = BACKEND_URL.trim_start_matches("http://");
-    let parts: Vec<&str> = url.split(':').collect();
-    let domain = parts[0];
-    let port = parts[1].parse::<i32>().unwrap();
-
-
-    let client = SignalRClient::connect_with(domain, "deviceRHub", |c| {
-        c.with_port(port);
+    let client = SignalRClient::connect_with(BACKEND_URL, "deviceRHub", |c| {
+        c.with_port(80);
         c.unsecure();
         c.with_query_param("type".to_string(), "client".to_string());
         c.with_access_token(token.to_string());
