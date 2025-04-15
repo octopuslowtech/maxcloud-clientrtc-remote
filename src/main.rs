@@ -1,9 +1,13 @@
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+mod models;
+mod middleware;
+mod handlers;
+
+use actix_web::{web, App, HttpServer};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use serde::{Deserialize, Serialize};
 use signalr_client::SignalRClient;
-use signalr_client::InvocationContext;
+use models::AppState;
+use middleware::AuthenticationMiddleware;
 
 // URL backend
 // const BACKEND_URL: &str = "http://localhost:7051";
@@ -155,17 +159,26 @@ async fn connect_to_signalr(token: &str) -> Result<SignalRClient, Box<dyn std::e
 async fn main() -> std::io::Result<()> {
     println!("Khởi động server tại http://localhost:1510");
 
-    let state = Arc::new(Mutex::new(AppState {
-        peer_connection: None,
-        hub_connection: None,
-        jwt_token: None,
-    }));
+    // Khởi tạo AppState với danh sách thiết bị mặc định
+    let state = Arc::new(Mutex::new(AppState::new()));
+
+    // Danh sách các routes không cần xác thực
+    let excluded_routes = vec!["/hello".to_string(), "/login".to_string()];
 
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(state.clone()))
-            .service(hello)
-            .service(login)
+            // Thêm middleware xác thực session
+            .wrap(AuthenticationMiddleware {
+                exclude_routes: excluded_routes.clone(),
+                app_state: state.clone(),
+            })
+            // Các routes không cần xác thực
+            .service(web::resource("/hello").route(web::get().to(handlers::hello)))
+            .service(web::resource("/login").route(web::get().to(handlers::login)))
+            // Các routes cần xác thực
+            .service(web::resource("/get-devices").route(web::get().to(handlers::get_devices)))
+            .service(web::resource("/connect-device").route(web::post().to(handlers::connect_device)))
     })
     .bind("127.0.0.1:1510")?
     .run()
