@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::models::{AppState, LoginQuery, LoginResponse, ApiResponseV2, DeviceStatus, ConnectDeviceRequest};
 use crate::connect_to_signalr;
+use crate::signalr_handler::SignalRHandler;
 
 pub async fn hello() -> impl Responder {
     let response = ApiResponseV2 {
@@ -64,13 +65,8 @@ pub async fn login(
                         // Kết nối đến SignalR
                         match connect_to_signalr(&token).await {
                             Ok(mut hub_connection) => {
-                                let _message_handler = hub_connection.register("MESSAGE".to_string(), |ctx| {
-                                    if let Ok(message) = ctx.argument::<String>(0) {
-                                        println!("Nhận được tin nhắn: {}", message);
-                                    } else {
-                                        println!("Không thể đọc tin nhắn");
-                                    }
-                                });
+                                // Đăng ký các handlers thông qua SignalRHandler
+                                SignalRHandler::register_handlers(&mut hub_connection);
                                 
                                 state.hub_connection = Some(hub_connection);
                                 

@@ -1,6 +1,7 @@
 mod models;
 mod middleware;
 mod handlers;
+mod signalr_handler;
 
 use actix_web::{web, App, HttpServer};
 use std::sync::Arc;
@@ -8,6 +9,7 @@ use tokio::sync::Mutex;
 use signalr_client::SignalRClient;
 use models::AppState;
 use middleware::AuthenticationMiddleware;
+use signalr_handler::SignalRHandler;
 
 // URL backend
 const BACKEND_URL: &str = "https://api.maxcloudphone.com";
@@ -32,8 +34,10 @@ async fn main() -> std::io::Result<()> {
     println!("Khởi động server tại http://localhost:1510");
 
     let state = Arc::new(Mutex::new(AppState::new()));
-
     let excluded_routes = vec!["/hello".to_string(), "/login".to_string()];
+
+    // Khởi động task theo dõi kết nối SignalR
+    SignalRHandler::start_reconnection_monitor(state.clone());
 
     HttpServer::new(move || {
         App::new()
