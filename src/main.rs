@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use signalr_client::SignalRClient;
+use signalr_client::InvocationContext;
 
 // URL backend
 const BACKEND_URL: &str = "http://localhost:7051";
@@ -42,6 +43,16 @@ async fn login(
     query: web::Query<LoginQuery>,
     app_state: web::Data<Arc<Mutex<AppState>>>,
 ) -> impl Responder {
+    // Kiểm tra xem đã login chưa
+    let state = app_state.lock().await;
+    if state.jwt_token.is_some() && state.hub_connection.is_some() {
+        return HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "message": "Login Sucess",
+        }));
+    }
+    drop(state);
+
     let key = &query.key;
     
     let client = reqwest::Client::builder()
@@ -71,7 +82,16 @@ async fn login(
                         
                         // Kết nối đến SignalR
                         match connect_to_signalr(&token).await {
-                            Ok(hub_connection) => {
+                            Ok(mut hub_connection) => {
+                                // Đăng ký lắng nghe event MESSAGE
+                                let _message_handler = hub_connection.register("MESSAGE".to_string(), |ctx| {
+                                    if let Ok(message) = ctx.argument::<String>(0) {
+                                        println!("Nhận được tin nhắn: {}", message);
+                                    } else {
+                                        println!("Không thể đọc tin nhắn");
+                                    }
+                                });
+                                
                                 state.hub_connection = Some(hub_connection);
                                 HttpResponse::Ok().json(serde_json::json!({
                                     "success": true,
@@ -116,16 +136,11 @@ struct LoginQuery {
 }
 
 async fn connect_to_signalr(token: &str) -> Result<SignalRClient, Box<dyn std::error::Error>> {
-    println!("Bắt đầu kết nối đến SignalR...  {}", token);
-
     let url = BACKEND_URL.trim_start_matches("http://");
     let parts: Vec<&str> = url.split(':').collect();
     let domain = parts[0];
     let port = parts[1].parse::<i32>().unwrap();
 
-    println!("Domain: {}", domain);
-    println!("Port: {}", port);
-    println!("Token: {}", token);
 
     let client = SignalRClient::connect_with(domain, "deviceRHub", |c| {
         c.with_port(port);
@@ -134,14 +149,11 @@ async fn connect_to_signalr(token: &str) -> Result<SignalRClient, Box<dyn std::e
         c.with_access_token(token.to_string());
     }).await?;
 
-    println!("Kết nối đến SignalR thành công");
-
     Ok(client)
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::init();
     println!("Khởi động server tại http://localhost:8081");
 
     let state = Arc::new(Mutex::new(AppState {
