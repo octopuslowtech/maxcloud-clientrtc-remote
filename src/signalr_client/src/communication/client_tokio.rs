@@ -166,7 +166,11 @@ impl CommunicationClient {
          
         if Some("wss") == self._endpoint.scheme_str() {
             info!("Connection to secure endpoint...");
-            let Ok(connector) = TlsConnector::new() else { return Err("Cannot create default TLS connector".to_string()); };
+            let connector = TlsConnector::builder()
+                .danger_accept_invalid_certs(true)
+                .min_protocol_version(Some(tokio_native_tls::native_tls::Protocol::Tlsv12))
+                .build()
+                .map_err(|e| format!("Cannot create TLS connector: {}", e.to_string()))?;
         
             let connector = tokio_websockets::Connector::NativeTls(connector.into());
             stream = ClientBuilder::from_uri(self._endpoint.clone()).connector(&connector).connect().await;             

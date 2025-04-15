@@ -1,4 +1,3 @@
-
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -137,13 +136,18 @@ struct LoginQuery {
 }
 
 async fn connect_to_signalr(token: &str) -> Result<SignalRClient, Box<dyn std::error::Error>> {
-    let client = SignalRClient::connect_with(BACKEND_URL, "deviceRHub", |c| {
-        c.with_port(80);
-        c.unsecure();
+    println!("Connecting to SignalR hub...");
+    println!("URL: {}", BACKEND_URL);
+    
+    // Sử dụng tên miền thay vì IP
+    let client = SignalRClient::connect_with("api.maxcloudphone.com", "deviceRHub", |c| {
+        c.with_port(443);
+        c.secure();  // Sử dụng HTTPS/WSS
         c.with_query_param("type".to_string(), "client".to_string());
         c.with_access_token(token.to_string());
     }).await?;
 
+    println!("Connected to SignalR successfully!");
     Ok(client)
 }
 

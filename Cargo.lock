@@ -667,6 +667,8 @@ dependencies = [
 [[package]]
 name = "datachannel"
 version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8266ddd85164e8187d47790ddcc0c693e60e9c2a5535d1bd2f87bff9cf7b611f"
 dependencies = [
  "datachannel-sys",
  "derive_more",
@@ -679,6 +681,8 @@ dependencies = [
 [[package]]
 name = "datachannel-sys"
 version = "0.22.3+0.22.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23490657978a0ead3f505ee7d82daa8d3494b87a40e48feb8f01df277e0bc7c7"
 dependencies = [
  "bindgen",
  "cmake",
