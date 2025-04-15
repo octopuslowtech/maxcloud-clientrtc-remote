@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-actix-web = "4.4.0"           # Server HTTP
+actix-web = "4.10.2"           # Server HTTP
 datachannel = { path = "src/datachannel-rs" }         # datachannel-rs
-serde = { version = "1.0", features = ["derive"] }  # JSON serialization
-serde_json = "1.0"          # JSON parsing
-tokio = { version = "1.0", features = ["full"] }   # Async runtime
-reqwest = { version = "0.11", features = ["json"] } # HTTP client with JSON support
+serde = { version = "1.0.219", features = ["derive"] }  # JSON serialization
+serde_json = "1.0.140"          # JSON parsing
+tokio = { version = "1.44.2", features = ["full"] }   # Async runtime
+reqwest = { version = "0.11.27", features = ["json"] } # HTTP client with JSON support
 signalr-client = { path = "src/signalr_client" }

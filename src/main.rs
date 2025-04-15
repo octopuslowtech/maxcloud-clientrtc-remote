@@ -83,7 +83,6 @@ async fn login(
                         // Kết nối đến SignalR
                         match connect_to_signalr(&token).await {
                             Ok(mut hub_connection) => {
-                                // Đăng ký lắng nghe event MESSAGE
                                 let _message_handler = hub_connection.register("MESSAGE".to_string(), |ctx| {
                                     if let Ok(message) = ctx.argument::<String>(0) {
                                         println!("Nhận được tin nhắn: {}", message);
@@ -154,7 +153,7 @@ async fn connect_to_signalr(token: &str) -> Result<SignalRClient, Box<dyn std::e
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Khởi động server tại http://localhost:8081");
+    println!("Khởi động server tại http://localhost:1510");
 
     let state = Arc::new(Mutex::new(AppState {
         peer_connection: None,
@@ -168,7 +167,7 @@ async fn main() -> std::io::Result<()> {
             .service(hello)
             .service(login)
     })
-    .bind("127.0.0.1:8081")?
+    .bind("127.0.0.1:1510")?
     .run()
     .await
 }
