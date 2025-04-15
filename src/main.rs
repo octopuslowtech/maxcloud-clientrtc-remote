@@ -10,140 +10,12 @@ use models::AppState;
 use middleware::AuthenticationMiddleware;
 
 // URL backend
-// const BACKEND_URL: &str = "http://localhost:7051";
 const BACKEND_URL: &str = "https://api.maxcloudphone.com";
-
-// Trạng thái WebRTC (sẽ dùng sau khi mở rộng)
-// Định nghĩa kiểu tạm thời cho PeerConnection (sẽ thay thế sau)
-type PeerConnection = Option<()>;
-
-// Định nghĩa struct AppState để lưu trạng thái ứng dụng
-struct AppState {
-    peer_connection: PeerConnection,
-    hub_connection: Option<SignalRClient>,
-    jwt_token: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct LoginResponse {
-    data: LoginData,
-    messages: Vec<String>,
-    succeeded: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct LoginData {
-    token: String,
-    #[serde(rename = "refreshToken")]
-    refresh_token: String,
-}
-
-#[get("/hello")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("hello world")
-}
-
-#[get("/login")]
-async fn login(
-    query: web::Query<LoginQuery>,
-    app_state: web::Data<Arc<Mutex<AppState>>>,
-) -> impl Responder {
-    // Kiểm tra xem đã login chưa
-    let state = app_state.lock().await;
-    if state.jwt_token.is_some() && state.hub_connection.is_some() {
-        return HttpResponse::Ok().json(serde_json::json!({
-            "success": true,
-            "message": "Login Sucess",
-        }));
-    }
-    drop(state);
-
-    let key = &query.key;
-    
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true) 
-        .build()
-        .unwrap();
-    
-    let login_result = client
-        .get(format!("{}/Octopus/login/{}", BACKEND_URL, key))
-        .header("Content-Type", "application/json")
-        .send()
-        .await;
-    
-    match login_result {
-        Ok(response) => {
-            let text = response.text().await.unwrap();
-            println!("Response text: {}", text);
-            
-            match serde_json::from_str::<LoginResponse>(&text) {
-                Ok(login_data) => {
-                    if login_data.succeeded {
-                        let token = login_data.data.token;
-                        
-                        // Lưu JWT token vào AppState
-                        let mut state = app_state.lock().await;
-                        state.jwt_token = Some(token.clone());
-                        
-                        // Kết nối đến SignalR
-                        match connect_to_signalr(&token).await {
-                            Ok(mut hub_connection) => {
-                                let _message_handler = hub_connection.register("MESSAGE".to_string(), |ctx| {
-                                    if let Ok(message) = ctx.argument::<String>(0) {
-                                        println!("Nhận được tin nhắn: {}", message);
-                                    } else {
-                                        println!("Không thể đọc tin nhắn");
-                                    }
-                                });
-                                
-                                state.hub_connection = Some(hub_connection);
-                                HttpResponse::Ok().json(serde_json::json!({
-                                    "success": true,
-                                    "message": "Đăng nhập thành công và đã kết nối đến SignalR",
-                                }))
-                            }
-                            Err(e) => {
-                                HttpResponse::InternalServerError().json(serde_json::json!({
-                                    "success": false,
-                                    "message": format!("Đăng nhập thành công nhưng không thể kết nối đến SignalR: {}", e),
-                                }))
-                            }
-                        }
-                    } else {
-                        HttpResponse::Unauthorized().json(serde_json::json!({
-                            "success": false,
-                            "message": login_data.messages.first().unwrap_or(&"Đăng nhập không thành công".to_string()).to_string(),
-                        }))
-                    }
-                }
-                Err(e) => {
-                    println!("Parse error: {}", e);
-                    HttpResponse::BadRequest().json(serde_json::json!({
-                        "success": false,
-                        "message": format!("Lỗi khi xử lý phản hồi: {}", e),
-                    }))
-                }
-            }
-        }
-        Err(e) => {
-            HttpResponse::InternalServerError().json(serde_json::json!({
-                "success": false,
-                "message": format!("Lỗi kết nối đến máy chủ xác thực: {}", e),
-            }))
-        }
-    }
-}
-
-#[derive(Deserialize)]
-struct LoginQuery {
-    key: String,
-}
 
 async fn connect_to_signalr(token: &str) -> Result<SignalRClient, Box<dyn std::error::Error>> {
     println!("Connecting to SignalR hub...");
     println!("URL: {}", BACKEND_URL);
     
-    // Sử dụng tên miền thay vì IP
     let client = SignalRClient::connect_with("api.maxcloudphone.com", "deviceRHub", |c| {
         c.with_port(443);
         c.secure();  // Sử dụng HTTPS/WSS
@@ -159,24 +31,19 @@ async fn connect_to_signalr(token: &str) -> Result<SignalRClient, Box<dyn std::e
 async fn main() -> std::io::Result<()> {
     println!("Khởi động server tại http://localhost:1510");
 
-    // Khởi tạo AppState với danh sách thiết bị mặc định
     let state = Arc::new(Mutex::new(AppState::new()));
 
-    // Danh sách các routes không cần xác thực
     let excluded_routes = vec!["/hello".to_string(), "/login".to_string()];
 
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(state.clone()))
-            // Thêm middleware xác thực session
             .wrap(AuthenticationMiddleware {
                 exclude_routes: excluded_routes.clone(),
                 app_state: state.clone(),
             })
-            // Các routes không cần xác thực
             .service(web::resource("/hello").route(web::get().to(handlers::hello)))
             .service(web::resource("/login").route(web::get().to(handlers::login)))
-            // Các routes cần xác thực
             .service(web::resource("/get-devices").route(web::get().to(handlers::get_devices)))
             .service(web::resource("/connect-device").route(web::post().to(handlers::connect_device)))
     })
