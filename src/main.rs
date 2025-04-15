@@ -130,7 +130,8 @@ async fn connect_to_signalr(token: &str) -> Result<SignalRClient, Box<dyn std::e
     let client = SignalRClient::connect_with(domain, "deviceRHub", |c| {
         c.with_port(port);
         c.unsecure();
-        c.authenticate_bearer(token.to_string());
+        c.with_query_param("type".to_string(), "client".to_string());
+        c.with_access_token(token.to_string());
     }).await?;
 
     println!("Kết nối đến SignalR thành công");
