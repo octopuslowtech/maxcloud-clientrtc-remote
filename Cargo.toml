@@ -1,0 +1,14 @@
+[package]
+name = "maxcloud-clientrtc-remote"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4.4.0"           # Server HTTP
+datachannel = "0.6"         # datachannel-rs
+serde = { version = "1.0", features = ["derive"] }  # JSON serialization
+serde_json = "1.0"          # JSON parsing
+tokio = { version = "1.0", features = ["full"] }   # Async runtime
+env_logger = "0.10"         # Logging setup
+reqwest = { version = "0.11", features = ["json"] } # HTTP client with JSON support
+signalr-client = { path = "src/signalr_client" }
